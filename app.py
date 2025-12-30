@@ -9,17 +9,25 @@ import pytz
 TOKEN_BOT = "IL_TUO_TOKEN_QUI"
 CHAT_ID_UTENTE = "IL_TUO_CHAT_ID_QUI"
 
-# --- 2. LISTA MAX OPPORTUNITÀ (30+ Strumenti) ---
+# --- 2. LISTA ULTRA-DINAMICA (50+ Strumenti) ---
 lista_strumenti = [
-    # Cripto
-    'BTC-USD', 'ETH-USD', 'SOL-USD', 'BNB-USD', 'XRP-USD', 'DOGE-USD', 'LINK-USD',
-    # Azioni USA Tech & AI
-    'AAPL', 'NVDA', 'TSLA', 'AMZN', 'MSFT', 'META', 'GOOGL', 'AMD', 'PLTR', 'NFLX', 'COIN', 'MSTR',
-    # Azioni Italia
-    'RACE.MI', 'ENI.MI', 'UCG.MI', 'ISP.MI', 'STLAM.MI', 'ENEL.MI',
-    # Materie Prime & Valute
-    'GC=F', 'SI=F', 'CL=F', 'EURUSD=X'
-]
+    # --- CRIPTO (Le più volatili) ---
+    'BTC-USD', 'ETH-USD', 'SOL-USD', 'BNB-USD', 'XRP-USD', 'ADA-USD', 'DOGE-USD', 
+    'DOT-USD', 'LINK-USD', 'AVAX-USD', 'MATIC-USD', 'SHIB-USD', 'LTC-USD',
+    
+    # --- AZIONI USA TECH & AI (Il cuore del mercato) ---
+    'AAPL', 'NVDA', 'TSLA', 'AMZN', 'MSFT', 'META', 'GOOGL', 'AMD', 'PLTR', 'NFLX', 
+    'COIN', 'MSTR', 'SMCI', 'ARM', 'UBER', 'SNOW', 'SHOP', 'PYPL', 'SQ',
+    
+    # --- AZIONI GROWTH & DIVIDENDI (USA) ---
+    'DIS', 'NKE', 'SBUX', 'V', 'MA', 'BABA', 'JD', 'PFE', 'T', 'VZ',
+    
+    # --- AZIONI ITALIANE (Milano) ---
+    'RACE.MI', 'ENI.MI', 'UCG.MI', 'ISP.MI', 'STLAM.MI', 'ENEL.MI', 'PRY.MI', 'LDO.MI', 'MONC.MI',
+    
+    # --- MATERIE PRIME, INDICI & VALUTE ---
+    'GC=F', 'SI=F', 'CL=F', 'EURUSD=X', 'GBPUSD=X', '^GSPC', '^IXIC'
+
 
 def invia_telegram(messaggio):
     try:
