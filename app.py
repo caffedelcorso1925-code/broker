@@ -5,40 +5,40 @@ import requests
 from datetime import datetime
 import pytz
 
-# --- CONFIGURAZIONE INIZIALE ---
-# Spostiamo tutto all'inizio, fuori da ogni blocco
+# --- 1. CONFIGURAZIONE CREDENZIALI ---
 TOKEN_BOT = "IL_TUO_TOKEN_QUI"
 CHAT_ID_UTENTE = "IL_TUO_CHAT_ID_QUI"
 
-# Definiamo i titoli subito, così Python non può non trovarli
-titoli = [
-    'AAPL', 'NVDA', 'TSLA', 'AMZN', 'MSFT', 'META', 'GOOGL', 'AMD', 'PLTR', 
-    'BTC-USD', 'ETH-USD', 'SOL-USD', 'GC=F', 'RACE.MI', 'ENI.MI', 'UCG.MI'
-]
+# --- 2. DEFINIZIONE TITOLI (Fissa e globale) ---
+# Questa lista DEVE stare fuori da ogni funzione o bottone
+titoli = ['AAPL', 'NVDA', 'TSLA', 'AMZN', 'MSFT', 'BTC-USD', 'ETH-USD', 'SOL-USD', 'GC=F']
 
-# Impostazione pagina
-st.set_page_config(page_title="Robot Investitore", page_icon="⚡")
-st.title("⚡ Robot Dinamico 10€")
-
+# --- 3. FUNZIONI DI SERVIZIO ---
 def invia_telegram(messaggio):
     try:
         url = f"https://api.telegram.org/bot{TOKEN_BOT}/sendMessage"
         payload = {"chat_id": CHAT_ID_UTENTE, "text": messaggio}
         requests.post(url, data=payload)
     except Exception as e:
-        st.error(f"Errore invio Telegram: {e}")
+        st.error(f"Errore Telegram: {e}")
 
-# --- LOGICA DELL'APP ---
-if st.button('🚀 Avvia Scansione'):
+# --- 4. INTERFACCIA UTENTE ---
+st.set_page_config(page_title="Robot Daily", page_icon="⚡")
+st.title("🚀 Robot Dinamico 10€")
+st.write("Analisi RSI in tempo reale")
+
+# --- 5. LOGICA DI SCANSIONE ---
+if st.button('🎯 Avvia Scansione Ora'):
     italy_tz = pytz.timezone("Europe/Rome")
     progress_bar = st.progress(0)
     
+    # Usiamo titoli definita sopra alla riga 13
     for i, t in enumerate(titoli):
         try:
+            # Scarico i dati
             df = yf.download(t, period="2mo", interval="1d", progress=False)
             
             if not df.empty and len(df) > 20:
-                # Gestione corretta dei dati per evitare errori di formato
                 chiusura = df['Close'].squeeze()
                 
                 # Calcolo RSI
@@ -54,16 +54,18 @@ if st.button('🚀 Avvia Scansione'):
                 prezzo_attuale = float(chiusura.iloc[-1])
                 ora_esatta = datetime.now(italy_tz).strftime("%H:%M:%S")
 
+                # Soglia dinamica a 40
                 if rsi_attuale < 40:
-                    msg = f"🟢 SEGNALE ORE {ora_esatta}\nTitolo: {t}\nPrezzo: {prezzo_attuale:.2f}€\nRSI: {rsi_attuale:.1f}"
+                    msg = f"🟢 OCCASIONE: {t}\nPrezzo: {prezzo_attuale:.2f}€\nRSI: {rsi_attuale:.1f}\nOra: {ora_esatta}"
                     st.success(msg)
                     invia_telegram(msg)
                 else:
                     st.info(f"⚪ {t}: RSI {rsi_attuale:.1f}")
             
         except Exception as e:
-            st.warning(f"Salto {t} per errore dati")
+            st.warning(f"Errore su {t}: {e}")
             
+        # Aggiorno la barra
         progress_bar.progress((i + 1) / len(titoli))
     
     st.success("Scansione completata!")
