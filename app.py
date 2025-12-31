@@ -6,7 +6,6 @@ from datetime import datetime
 import pytz
 
 # --- CONFIGURAZIONE TELEGRAM ---
-# Inserisci qui i tuoi dati reali
 TOKEN_BOT = "IL_TUO_TOKEN_QUI"
 CHAT_ID_UTENTE = "IL_TUO_CHAT_ID_QUI"
 italy_tz = pytz.timezone("Europe/Rome")
@@ -15,16 +14,16 @@ def invia_telegram(messaggio):
     try:
         url = f"https://api.telegram.org/bot{TOKEN_BOT}/sendMessage"
         payload = {"chat_id": CHAT_ID_UTENTE, "text": messaggio}
-        requests.post(url, data=payload)
-    except Exception as e:
-        pass # Silenzioso se Telegram non è configurato
+        requests.post(url, data=payload, timeout=5)
+    except:
+        pass
 
 # --- CONFIGURAZIONE APP ---
-st.set_page_config(page_title="Robot Pro 52", page_icon="💰", layout="wide")
+st.set_page_config(page_title="Robot Pro 52 - Fix", page_icon="💰", layout="wide")
 st.title("💰 Robot Finanziario Dinamico: 52 Titoli")
-st.write(f"Scansione RSI < 40 + Media 15gg. Ora: {datetime.now(italy_tz).strftime('%H:%M:%S')}")
+st.write(f"Scansione RSI < 40 + Grafici 15gg. Ora: {datetime.now(italy_tz).strftime('%H:%M:%S')}")
 
-# --- LISTA 52 TITOLI (USA, Crypto, Italia) ---
+# --- LISTA 52 TITOLI ---
 titoli = [
     'AAPL', 'NVDA', 'TSLA', 'AMZN', 'MSFT', 'META', 'GOOGL', 'AMD', 'PLTR', 'NFLX', 
     'ARM', 'SMCI', 'AVGO', 'INTC', 'ORCL', 'SNOW', 'BABA', 'UBER', 'COIN', 'SHOP',
@@ -39,14 +38,18 @@ if st.button('🚀 AVVIA SCANSIONE COMPLETA'):
     progress_bar = st.progress(0)
     
     for i, t in enumerate(titoli):
-        # Scarichiamo dati (60 giorni per avere una media 15gg stabile)
+        # Scarichiamo dati (60 giorni per sicurezza)
         df = yf.download(t, period="60d", interval="1d", progress=False)
         
         if not df.empty and len(df) > 20:
-            # 1. Calcolo Media Mobile 15gg
+            # --- FIX KEYERROR: Appiattiamo le colonne di Yahoo Finance ---
+            if isinstance(df.columns, pd.MultiIndex):
+                df.columns = df.columns.get_level_values(0)
+            
+            # Calcolo Media Mobile 15gg
             df['Media_15'] = df['Close'].rolling(window=15).mean()
             
-            # 2. Calcolo RSI professionale
+            # Calcolo RSI professionale
             delta = df['Close'].diff()
             up = delta.clip(lower=0)
             down = -1 * delta.clip(upper=0)
@@ -61,31 +64,31 @@ if st.button('🚀 AVVIA SCANSIONE COMPLETA'):
             sconto = ((media_15 - prezzo_attuale) / media_15) * 100
             ora_segnale = datetime.now(italy_tz).strftime("%H:%M:%S")
 
-            # 3. LOGICA SEGNALE (RSI < 40)
+            # --- LOGICA SEGNALE (RSI < 40) ---
             if rsi_attuale < 40:
                 emoji = "🚨" if rsi_attuale < 25 else "🟢"
                 
                 # PULSANTE A SCOMPARSA (Expander)
                 with st.expander(f"{emoji} {t} - RSI: {rsi_attuale:.1f} | Sconto: {sconto:.1f}%"):
-                    st.write(f"**Prezzo attuale:** {prezzo_attuale:.2f}€ | **Media 15gg:** {media_15:.2f}€")
+                    st.write(f"**Prezzo:** {prezzo_attuale:.2f} | **Media 15gg:** {media_15:.2f}")
                     
                     # Grafico Prezzo vs Media (ultimi 15gg)
                     df_recent = df.tail(15)[['Close', 'Media_15']]
                     st.line_chart(df_recent)
                     
                     # Grafico RSI (ultimi 15gg)
-                    st.write("Andamento RSI:")
+                    st.write("Andamento RSI ultimi 15 giorni:")
                     st.area_chart(df.tail(15)['RSI'])
                     
-                    # Messaggio Telegram
+                    # Invio Telegram
                     msg = (f"{emoji} SEGNALE {t}\nPrezzo: {prezzo_attuale:.2f}\nRSI: {rsi_attuale:.1f}\n"
                            f"Sconto vs Media: {sconto:.1f}%\nOre: {ora_segnale}")
                     invia_telegram(msg)
             else:
-                # Titoli non interessanti mostrati in riga semplice
+                # Titoli senza segnale mostrati in modo semplice
                 st.text(f"⚪ {t}: RSI {rsi_attuale:.1f} - Nessun segnale")
         
         # Aggiornamento barra di caricamento
         progress_bar.progress((i + 1) / len(titoli))
     
-    st.success("Scansione terminata! Clicca sui segnali 🟢 per vedere i grafici.")
+    st.success("Scansione completata! Apri i segnali verdi per l'analisi.")
