@@ -18,12 +18,7 @@ def invia_telegram(messaggio):
     except:
         pass
 
-# --- 2. CONFIGURAZIONE APP ---
-st.set_page_config(page_title="Robot 52 Trader", page_icon="📈")
-st.title("📈 Robot 52 Titoli - Strategia RSI")
-st.write(f"Soglie: <35 COMPRA (Verde) | >70 VENDI (Rosso). Ora: {datetime.now(italy_tz).strftime('%H:%M:%S')}")
-
-# --- 3. LISTA 52 TITOLI (Sempre visibile per evitare NameError) ---
+# --- 2. DEFINIZIONE LISTA TITOLI (Spostata in alto per evitare NameError) ---
 titoli = [
     'AAPL', 'NVDA', 'TSLA', 'AMZN', 'MSFT', 'META', 'GOOGL', 'AMD', 'PLTR', 'NFLX', 
     'ARM', 'SMCI', 'AVGO', 'INTC', 'ORCL', 'SNOW', 'BABA', 'UBER', 'COIN', 'SHOP',
@@ -33,15 +28,18 @@ titoli = [
     'SQ', 'MSTR', 'MDB', 'AIBOT', 'V'
 ]
 
+# --- 3. CONFIGURAZIONE APP ---
+st.set_page_config(page_title="Robot Trader 52", page_icon="⚖️")
+st.title("⚖️ Robot 52 Titoli: Strategia 35/70")
+st.write(f"Soglie: Compra < 35 | Vendi > 70. Ora: {datetime.now(italy_tz).strftime('%H:%M:%S')}")
+
 # --- 4. LOGICA DI SCANSIONE ---
-if st.button('🚀 AVVIA SCANSIONE PROFESSIONALE'):
+if st.button('🚀 AVVIA SCANSIONE'):
     progress_bar = st.progress(0)
-    segnali_buy = 0
-    segnali_sell = 0
     
     for i, t in enumerate(titoli):
         try:
-            # Scarichiamo dati (30 giorni bastano per l'RSI)
+            # Scarichiamo dati (30 giorni bastano)
             df = yf.download(t, period="30d", interval="1d", progress=False)
             
             if not df.empty and len(df) > 14:
@@ -49,7 +47,7 @@ if st.button('🚀 AVVIA SCANSIONE PROFESSIONALE'):
                 if isinstance(df.columns, pd.MultiIndex):
                     df.columns = df.columns.get_level_values(0)
                 
-                # Calcolo RSI professionale
+                # Calcolo RSI
                 delta = df['Close'].diff()
                 up = delta.clip(lower=0)
                 down = -1 * delta.clip(upper=0)
@@ -60,30 +58,26 @@ if st.button('🚀 AVVIA SCANSIONE PROFESSIONALE'):
                 prezzo_attuale = float(df['Close'].iloc[-1])
                 ora_segnale = datetime.now(italy_tz).strftime("%H:%M:%S")
 
-                # --- LOGICA SEGNALI ---
+                # --- VISUALIZZAZIONE RISULTATI ---
                 
-                # 🟢 COMPRARE (Sotto 35)
                 if rsi_attuale < 35:
-                    segnali_buy += 1
-                    msg = f"🟢 COMPRA: {t} | Prezzo: {prezzo_attuale:.2f} | RSI: {rsi_attuale:.1f}"
-                    st.success(msg)
-                    invia_telegram(f"🚀 SEGNALE COMPRA\n{msg}\nOre: {ora_segnale}")
+                    # VERDE - COMPRARE
+                    st.success(f"🟢 **COMPRA {t}**: RSI {rsi_attuale:.1f} | Prezzo: {prezzo_attuale:.2f}")
+                    invia_telegram(f"🚀 SEGNALE COMPRA\n{t}: {prezzo_attuale:.2f}\nRSI: {rsi_attuale:.1f}")
                 
-                # 🔴 VENDERE (Sopra 70)
                 elif rsi_attuale > 70:
-                    segnali_sell += 1
-                    msg = f"🔴 VENDERE: {t} | Prezzo: {prezzo_attuale:.2f} | RSI: {rsi_attuale:.1f}"
-                    st.error(msg)
-                    invia_telegram(f"💰 SEGNALE VENDI\n{msg}\nOre: {ora_segnale}")
+                    # ROSSO - VENDERE
+                    st.error(f"🔴 **VENDI {t}**: RSI {rsi_attuale:.1f} | Prezzo: {prezzo_attuale:.2f}")
+                    invia_telegram(f"💰 SEGNALE VENDI\n{t}: {prezzo_attuale:.2f}\nRSI: {rsi_attuale:.1f}")
                 
-                # ⚪ STABILE (Tra 35 e 70)
                 else:
+                    # BIANCO - STABILE
                     st.text(f"⚪ {t}: RSI {rsi_attuale:.1f} - Stabile")
                     
         except Exception as e:
-            st.error(f"Errore su {t}: {e}")
+            # Continua con il titolo successivo se c'è un errore
+            continue
         
-        # Avanzamento barra
         progress_bar.progress((i + 1) / len(titoli))
     
-    st.success(f"Scansione completata! Trovati {segnali_buy} segnali Buy e {segnali_sell} segnali Sell.")
+    st.success("Scansione terminata!")
