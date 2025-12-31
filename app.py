@@ -19,9 +19,9 @@ def invia_telegram(messaggio):
         pass
 
 # --- CONFIGURAZIONE APP ---
-st.set_page_config(page_title="Robot Pro 52 - Fix", page_icon="💰", layout="wide")
-st.title("💰 Robot Finanziario Dinamico: 52 Titoli")
-st.write(f"Scansione RSI < 40 + Grafici 15gg. Ora: {datetime.now(italy_tz).strftime('%H:%M:%S')}")
+st.set_page_config(page_title="Robot Pro 52 Fix", page_icon="💰", layout="wide")
+st.title("💰 Robot 52 Titoli - Versione Corretta")
+st.write(f"Scansione RSI < 40 + Grafici. Ora: {datetime.now(italy_tz).strftime('%H:%M:%S')}")
 
 # --- LISTA 52 TITOLI ---
 titoli = [
@@ -34,16 +34,16 @@ titoli = [
 ]
 
 # --- AVVIO SCANSIONE ---
-if st.button('🚀 AVVIA SCANSIONE COMPLETA'):
+if st.button('🚀 AVVIA SCANSIONE'):
     progress_bar = st.progress(0)
     
     for i, t in enumerate(titoli):
-        # Scarichiamo dati (60 giorni per avere una media mobile corretta)
+        # Scarichiamo dati 60 giorni
         df = yf.download(t, period="60d", interval="1d", progress=False)
         
         if not df.empty and len(df) > 20:
-            # --- FIX PER IL TUO ERRORE (KeyError) ---
-            # Appiattiamo le colonne se sono MultiIndex
+            # --- SOLUZIONE AL KEYERROR ---
+            # Appiattiamo i nomi delle colonne per eliminare il MultiIndex
             if isinstance(df.columns, pd.MultiIndex):
                 df.columns = df.columns.get_level_values(0)
             
@@ -58,36 +58,32 @@ if st.button('🚀 AVVIA SCANSIONE COMPLETA'):
             ema_down = down.ewm(com=13, adjust=False).mean()
             df['RSI'] = 100 - (100 / (1 + (ema_up / ema_down)))
             
-            # Dati attuali
+            # Dati attuali (usiamo .iloc[-1] per valori singoli)
             prezzo_attuale = float(df['Close'].iloc[-1])
             rsi_attuale = float(df['RSI'].iloc[-1])
             media_15 = float(df['Media_15'].iloc[-1])
             sconto = ((media_15 - prezzo_attuale) / media_15) * 100
             ora_segnale = datetime.now(italy_tz).strftime("%H:%M:%S")
 
-            # --- LOGICA SEGNALE (RSI < 40) ---
+            # --- LOGICA SEGNALE ---
             if rsi_attuale < 40:
                 emoji = "🚨" if rsi_attuale < 25 else "🟢"
-                
-                # PULSANTE A SCOMPARSA (Expander)
                 with st.expander(f"{emoji} {t} - RSI: {rsi_attuale:.1f} | Sconto: {sconto:.1f}%"):
-                    st.write(f"**Prezzo attuale:** {prezzo_attuale:.2f}€ | **Media 15gg:** {media_15:.2f}€")
+                    st.write(f"**Prezzo:** {prezzo_attuale:.2f}€ | **Media 15gg:** {media_15:.2f}€")
                     
-                    # Grafico Prezzo vs Media (ultimi 15gg)
-                    df_recent = df.tail(15)[['Close', 'Media_15']]
-                    st.line_chart(df_recent)
+                    # Grafico Prezzo vs Media
+                    df_plot = df.tail(15)[['Close', 'Media_15']]
+                    st.line_chart(df_plot)
                     
-                    # Grafico RSI (ultimi 15gg)
-                    st.write("Andamento RSI (Sotto 40 è zona acquisto):")
+                    # Grafico RSI
+                    st.write("Andamento RSI (15gg):")
                     st.area_chart(df.tail(15)['RSI'])
                     
-                    # Messaggio Telegram
-                    msg = (f"{emoji} SEGNALE {t}\nPrezzo: {prezzo_attuale:.2f}\nRSI: {rsi_attuale:.1f}\n"
-                           f"Sconto vs Media: {sconto:.1f}%\nOre: {ora_segnale}")
+                    # Telegram
+                    msg = f"{emoji} {t}\nPrezzo: {prezzo_attuale:.2f}\nRSI: {rsi_attuale:.1f}\nSconto: {sconto:.1f}%\nOre: {ora_segnale}"
                     invia_telegram(msg)
             else:
-                st.text(f"⚪ {t}: RSI {rsi_attuale:.1f} - Nessun segnale")
+                st.text(f"⚪ {t}: RSI {rsi_attuale:.1f}")
         
         progress_bar.progress((i + 1) / len(titoli))
-    
-    st.success("Scansione completata!")
+    st.success("Scansione terminata!")
