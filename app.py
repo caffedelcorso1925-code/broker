@@ -38,11 +38,12 @@ if st.button('🚀 AVVIA SCANSIONE COMPLETA'):
     progress_bar = st.progress(0)
     
     for i, t in enumerate(titoli):
-        # Scarichiamo dati (60 giorni per sicurezza)
+        # Scarichiamo dati (60 giorni per avere una media mobile corretta)
         df = yf.download(t, period="60d", interval="1d", progress=False)
         
         if not df.empty and len(df) > 20:
-            # --- FIX KEYERROR: Appiattiamo le colonne di Yahoo Finance ---
+            # --- FIX PER IL TUO ERRORE (KeyError) ---
+            # Appiattiamo le colonne se sono MultiIndex
             if isinstance(df.columns, pd.MultiIndex):
                 df.columns = df.columns.get_level_values(0)
             
@@ -70,25 +71,23 @@ if st.button('🚀 AVVIA SCANSIONE COMPLETA'):
                 
                 # PULSANTE A SCOMPARSA (Expander)
                 with st.expander(f"{emoji} {t} - RSI: {rsi_attuale:.1f} | Sconto: {sconto:.1f}%"):
-                    st.write(f"**Prezzo:** {prezzo_attuale:.2f} | **Media 15gg:** {media_15:.2f}")
+                    st.write(f"**Prezzo attuale:** {prezzo_attuale:.2f}€ | **Media 15gg:** {media_15:.2f}€")
                     
                     # Grafico Prezzo vs Media (ultimi 15gg)
                     df_recent = df.tail(15)[['Close', 'Media_15']]
                     st.line_chart(df_recent)
                     
                     # Grafico RSI (ultimi 15gg)
-                    st.write("Andamento RSI ultimi 15 giorni:")
+                    st.write("Andamento RSI (Sotto 40 è zona acquisto):")
                     st.area_chart(df.tail(15)['RSI'])
                     
-                    # Invio Telegram
+                    # Messaggio Telegram
                     msg = (f"{emoji} SEGNALE {t}\nPrezzo: {prezzo_attuale:.2f}\nRSI: {rsi_attuale:.1f}\n"
                            f"Sconto vs Media: {sconto:.1f}%\nOre: {ora_segnale}")
                     invia_telegram(msg)
             else:
-                # Titoli senza segnale mostrati in modo semplice
                 st.text(f"⚪ {t}: RSI {rsi_attuale:.1f} - Nessun segnale")
         
-        # Aggiornamento barra di caricamento
         progress_bar.progress((i + 1) / len(titoli))
     
-    st.success("Scansione completata! Apri i segnali verdi per l'analisi.")
+    st.success("Scansione completata!")
