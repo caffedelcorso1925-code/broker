@@ -14,40 +14,39 @@ def invia_telegram(messaggio):
     try:
         url = f"https://api.telegram.org/bot{TOKEN_BOT}/sendMessage"
         payload = {"chat_id": CHAT_ID_UTENTE, "text": messaggio}
-        requests.post(url, data=payload, timeout=5)
-    except:
-        pass
+        requests.post(url, data=payload)
+    except Exception as e:
+        st.error(f"Errore Telegram: {e}")
 
 # --- CONFIGURAZIONE APP ---
-st.set_page_config(page_title="Robot Pro 52 Fix", page_icon="💰", layout="wide")
-st.title("💰 Robot 52 Titoli - Versione Corretta")
-st.write(f"Scansione RSI < 40 + Grafici. Ora: {datetime.now(italy_tz).strftime('%H:%M:%S')}")
+st.set_page_config(page_title="Robot 52 Titoli", page_icon="📈", layout="wide")
+st.title("📈 Robot Finanziario: 52 Titoli sotto Controllo")
+st.write(f"Scansione attiva con soglia RSI < 40 e Grafici 15gg. Ora attuale: {datetime.now(italy_tz).strftime('%H:%M:%S')}")
 
-# --- LISTA 52 TITOLI ---
+# --- LISTA 52 TITOLI (Dinamici, Tech, Crypto, Italia) ---
 titoli = [
+    # Tecnologia & AI (USA)
     'AAPL', 'NVDA', 'TSLA', 'AMZN', 'MSFT', 'META', 'GOOGL', 'AMD', 'PLTR', 'NFLX', 
     'ARM', 'SMCI', 'AVGO', 'INTC', 'ORCL', 'SNOW', 'BABA', 'UBER', 'COIN', 'SHOP',
+    # Crypto (24/7)
     'BTC-USD', 'ETH-USD', 'SOL-USD', 'DOGE-USD', 'ADA-USD', 'XRP-USD', 'DOT-USD', 'LINK-USD',
-    'QQQ', 'SPY', 'GC=F', 'CL=F', 'RACE.MI', 'ENI.MI', 'UCG.MI', 'ISP.MI', 'STLAM.MI', 
-    'STM.MI', 'EGP.MI', 'PST.MI', 'LDO.MI', 'G.MI', 'GME', 'AMC', 'PYPL', 'DIS', 'NIO', 
-    'SQ', 'MSTR', 'MDB', 'AIBOT', 'V'
+    # Indici & Materie Prime
+    'QQQ', 'SPY', 'GC=F', 'CL=F', 'SILVER',
+    # Mercato Italiano (Piazza Affari)
+    'RACE.MI', 'ENI.MI', 'UCG.MI', 'ISP.MI', 'STLAM.MI', 'STM.MI', 'EGP.MI', 'PST.MI', 'LDO.MI', 'G.MI',
+    # Altri titoli dinamici / Meme
+    'GME', 'AMC', 'PYPL', 'DIS', 'NIO', 'SQ', 'AIBOT', 'MSTR', 'MDB'
 ]
 
-# --- AVVIO SCANSIONE ---
-if st.button('🚀 AVVIA SCANSIONE'):
+# --- LOGICA DI SCANSIONE ---
+if st.button('🚀 Avvia Scansione Totale (52 Titoli)'):
     progress_bar = st.progress(0)
-    
     for i, t in enumerate(titoli):
-        # Scarichiamo dati 60 giorni
+        # Scarichiamo dati sufficienti per calcolare medie e RSI (60 giorni)
         df = yf.download(t, period="60d", interval="1d", progress=False)
         
         if not df.empty and len(df) > 20:
-            # --- SOLUZIONE AL KEYERROR ---
-            # Appiattiamo i nomi delle colonne per eliminare il MultiIndex
-            if isinstance(df.columns, pd.MultiIndex):
-                df.columns = df.columns.get_level_values(0)
-            
-            # Calcolo Media Mobile 15gg
+            # Calcolo Media Mobile 15 giorni
             df['Media_15'] = df['Close'].rolling(window=15).mean()
             
             # Calcolo RSI professionale
@@ -58,32 +57,39 @@ if st.button('🚀 AVVIA SCANSIONE'):
             ema_down = down.ewm(com=13, adjust=False).mean()
             df['RSI'] = 100 - (100 / (1 + (ema_up / ema_down)))
             
-            # Dati attuali (usiamo .iloc[-1] per valori singoli)
+            # Valori attuali
             prezzo_attuale = float(df['Close'].iloc[-1])
             rsi_attuale = float(df['RSI'].iloc[-1])
             media_15 = float(df['Media_15'].iloc[-1])
             sconto = ((media_15 - prezzo_attuale) / media_15) * 100
             ora_segnale = datetime.now(italy_tz).strftime("%H:%M:%S")
-
-            # --- LOGICA SEGNALE ---
+            
+            # Logica Alert
             if rsi_attuale < 40:
-                emoji = "🚨" if rsi_attuale < 25 else "🟢"
-                with st.expander(f"{emoji} {t} - RSI: {rsi_attuale:.1f} | Sconto: {sconto:.1f}%"):
-                    st.write(f"**Prezzo:** {prezzo_attuale:.2f}€ | **Media 15gg:** {media_15:.2f}€")
+                colore = "🔴" if rsi_attuale < 25 else "🟢"
+                with st.expander(f"{colore} ALERT: {t} | RSI: {rsi_attuale:.1f} | Sconto: {sconto:.1f}%"):
+                    st.write(f"**Prezzo:** {prezzo_attuale:.2f} | **Media 15gg:** {media_15:.2f}")
                     
                     # Grafico Prezzo vs Media
-                    df_plot = df.tail(15)[['Close', 'Media_15']]
-                    st.line_chart(df_plot)
+                    df_plot = df.tail(15)
+                    st.line_chart(df_plot[['Close', 'Media_15']])
                     
                     # Grafico RSI
-                    st.write("Andamento RSI (15gg):")
-                    st.area_chart(df.tail(15)['RSI'])
+                    st.write("Andamento RSI (15 giorni):")
+                    st.area_chart(df_plot['RSI'])
                     
-                    # Telegram
-                    msg = f"{emoji} {t}\nPrezzo: {prezzo_attuale:.2f}\nRSI: {rsi_attuale:.1f}\nSconto: {sconto:.1f}%\nOre: {ora_segnale}"
+                    # Invio Telegram
+                    msg = (f"{colore} SEGNALE {t}\n"
+                           f"Prezzo: {prezzo_attuale:.2f}\n"
+                           f"RSI: {rsi_attuale:.1f} (Ipervenduto)\n"
+                           f"Sconto vs Media 15gg: {sconto:.1f}%\n"
+                           f"Ore: {ora_segnale}")
                     invia_telegram(msg)
             else:
-                st.text(f"⚪ {t}: RSI {rsi_attuale:.1f}")
+                # Titoli non in sconto mostrati in modo compatto
+                st.write(f"⚪ {t}: RSI {rsi_attuale:.1f} (Nessun segnale)")
         
+        # Aggiorna barra progresso
         progress_bar.progress((i + 1) / len(titoli))
-    st.success("Scansione terminata!")
+
+    st.success(f"Scansione di {len(titoli)} titoli completata!")
