@@ -18,7 +18,7 @@ def invia_telegram(messaggio):
     except:
         pass
 
-# --- 2. DEFINIZIONE LISTA TITOLI ---
+# --- 2. LISTA TITOLI ---
 titoli = [
     'AAPL', 'NVDA', 'TSLA', 'AMZN', 'MSFT', 'META', 'GOOGL', 'AMD', 'PLTR', 'NFLX', 
     'ARM', 'SMCI', 'AVGO', 'INTC', 'ORCL', 'SNOW', 'BABA', 'UBER', 'COIN', 'SHOP',
@@ -29,18 +29,18 @@ titoli = [
 ]
 
 # --- 3. CONFIGURAZIONE APP ---
-st.set_page_config(page_title="Robot 52 Grouped", page_icon="📊")
-st.title("📊 Robot Trader: Risultati Raggruppati")
-st.write(f"Strategia: Compra < 35 | Vendi > 70")
+st.set_page_config(page_title="Robot Raggruppato", page_icon="🎨")
+st.title("🎨 Robot Trader: Analisi per Colore")
+st.write("Soglie: Compra < 35 | Vendi > 70")
 
 # --- 4. LOGICA DI SCANSIONE ---
 if st.button('🚀 AVVIA SCANSIONE RAGGRUPPATA'):
     progress_bar = st.progress(0)
     
-    # Liste per raggruppare i risultati
-    lista_compra = []
-    lista_vendi = []
-    lista_stabili = []
+    # Creiamo dei "cassetti" dove mettere i risultati
+    compras = []
+    vendis = []
+    stabili = []
     
     for i, t in enumerate(titoli):
         try:
@@ -58,45 +58,41 @@ if st.button('🚀 AVVIA SCANSIONE RAGGRUPPATA'):
                 rsi_attuale = float(100 - (100 / (1 + rs)).iloc[-1])
                 prezzo_attuale = float(df['Close'].iloc[-1])
 
-                info = f"**{t}** - RSI: {rsi_attuale:.1f} | Prezzo: {prezzo_attuale:.2f}"
+                testo_risultato = f"**{t}** | Prezzo: {prezzo_attuale:.2f} | RSI: {rsi_attuale:.1f}"
                 
+                # Mettiamo il risultato nel cassetto giusto
                 if rsi_attuale < 35:
-                    lista_compra.append(info)
+                    compras.append(testo_risultato)
                     invia_telegram(f"🟢 COMPRA: {t} (RSI {rsi_attuale:.1f})")
                 elif rsi_attuale > 70:
-                    lista_vendi.append(info)
+                    vendis.append(testo_risultato)
                     invia_telegram(f"🔴 VENDI: {t} (RSI {rsi_attuale:.1f})")
                 else:
-                    lista_stabili.append(f"{t}: RSI {rsi_attuale:.1f}")
+                    stabili.append(f"{t}: RSI {rsi_attuale:.1f}")
         except:
             continue
         progress_bar.progress((i + 1) / len(titoli))
 
-    # --- 5. VISUALIZZAZIONE RAGGRUPPATA ---
+    # --- 5. MOSTRA I RISULTATI RAGGRUPPATI ---
     
-    st.divider()
-    
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        st.subheader("🟢 DA COMPRARE (<35)")
-        if lista_compra:
-            for item in lista_compra:
-                st.success(item)
-        else:
-            st.write("Nessun titolo in sconto.")
+    st.subheader("🟢 SEGNALI DI ACQUISTO (Sotto 35)")
+    if compras:
+        for c in compras:
+            st.success(c)
+    else:
+        st.info("Nessun titolo da comprare al momento.")
 
-    with col2:
-        st.subheader("🔴 DA VENDERE (>70)")
-        if lista_vendi:
-            for item in lista_vendi:
-                st.error(item)
-        else:
-            st.write("Nessun titolo in ipercomprato.")
+    st.subheader("🔴 SEGNALI DI VENDITA (Sopra 70)")
+    if vendis:
+        for v in vendis:
+            st.error(v)
+    else:
+        st.info("Nessun titolo da vendere al momento.")
 
-    st.divider()
-    
-    with st.expander("⚪ TITOLI STABILI"):
-        if lista_stabili:
-            for item in lista_stabili:
-                st.write(item)
+    st.subheader("⚪ TITOLI IN FASE STABILE")
+    with st.expander("Clicca per vedere i titoli stabili"):
+        if stabili:
+            for s in stabili:
+                st.write(s)
+        else:
+            st.write("Nessun dato disponibile.")
