@@ -18,7 +18,7 @@ def invia_telegram(messaggio):
     except:
         pass
 
-# --- 2. DEFINIZIONE LISTA TITOLI (Spostata in alto per evitare NameError) ---
+# --- 2. DEFINIZIONE LISTA TITOLI ---
 titoli = [
     'AAPL', 'NVDA', 'TSLA', 'AMZN', 'MSFT', 'META', 'GOOGL', 'AMD', 'PLTR', 'NFLX', 
     'ARM', 'SMCI', 'AVGO', 'INTC', 'ORCL', 'SNOW', 'BABA', 'UBER', 'COIN', 'SHOP',
@@ -29,25 +29,26 @@ titoli = [
 ]
 
 # --- 3. CONFIGURAZIONE APP ---
-st.set_page_config(page_title="Robot Trader 52", page_icon="⚖️")
-st.title("⚖️ Robot 52 Titoli: Strategia 35/70")
-st.write(f"Soglie: Compra < 35 | Vendi > 70. Ora: {datetime.now(italy_tz).strftime('%H:%M:%S')}")
+st.set_page_config(page_title="Robot 52 Grouped", page_icon="📊")
+st.title("📊 Robot Trader: Risultati Raggruppati")
+st.write(f"Strategia: Compra < 35 | Vendi > 70")
 
 # --- 4. LOGICA DI SCANSIONE ---
-if st.button('🚀 AVVIA SCANSIONE'):
+if st.button('🚀 AVVIA SCANSIONE RAGGRUPPATA'):
     progress_bar = st.progress(0)
+    
+    # Liste per raggruppare i risultati
+    lista_compra = []
+    lista_vendi = []
+    lista_stabili = []
     
     for i, t in enumerate(titoli):
         try:
-            # Scarichiamo dati (30 giorni bastano)
             df = yf.download(t, period="30d", interval="1d", progress=False)
-            
             if not df.empty and len(df) > 14:
-                # Fix per colonne Yahoo Finance (MultiIndex)
                 if isinstance(df.columns, pd.MultiIndex):
                     df.columns = df.columns.get_level_values(0)
                 
-                # Calcolo RSI
                 delta = df['Close'].diff()
                 up = delta.clip(lower=0)
                 down = -1 * delta.clip(upper=0)
@@ -56,28 +57,46 @@ if st.button('🚀 AVVIA SCANSIONE'):
                 rs = ema_up / ema_down
                 rsi_attuale = float(100 - (100 / (1 + rs)).iloc[-1])
                 prezzo_attuale = float(df['Close'].iloc[-1])
-                ora_segnale = datetime.now(italy_tz).strftime("%H:%M:%S")
 
-                # --- VISUALIZZAZIONE RISULTATI ---
+                info = f"**{t}** - RSI: {rsi_attuale:.1f} | Prezzo: {prezzo_attuale:.2f}"
                 
                 if rsi_attuale < 35:
-                    # VERDE - COMPRARE
-                    st.success(f"🟢 **COMPRA {t}**: RSI {rsi_attuale:.1f} | Prezzo: {prezzo_attuale:.2f}")
-                    invia_telegram(f"🚀 SEGNALE COMPRA\n{t}: {prezzo_attuale:.2f}\nRSI: {rsi_attuale:.1f}")
-                
+                    lista_compra.append(info)
+                    invia_telegram(f"🟢 COMPRA: {t} (RSI {rsi_attuale:.1f})")
                 elif rsi_attuale > 70:
-                    # ROSSO - VENDERE
-                    st.error(f"🔴 **VENDI {t}**: RSI {rsi_attuale:.1f} | Prezzo: {prezzo_attuale:.2f}")
-                    invia_telegram(f"💰 SEGNALE VENDI\n{t}: {prezzo_attuale:.2f}\nRSI: {rsi_attuale:.1f}")
-                
+                    lista_vendi.append(info)
+                    invia_telegram(f"🔴 VENDI: {t} (RSI {rsi_attuale:.1f})")
                 else:
-                    # BIANCO - STABILE
-                    st.text(f"⚪ {t}: RSI {rsi_attuale:.1f} - Stabile")
-                    
-        except Exception as e:
-            # Continua con il titolo successivo se c'è un errore
+                    lista_stabili.append(f"{t}: RSI {rsi_attuale:.1f}")
+        except:
             continue
-        
         progress_bar.progress((i + 1) / len(titoli))
+
+    # --- 5. VISUALIZZAZIONE RAGGRUPPATA ---
     
-    st.success("Scansione terminata!")
+    st.divider()
+    
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        st.subheader("🟢 DA COMPRARE (<35)")
+        if lista_compra:
+            for item in lista_compra:
+                st.success(item)
+        else:
+            st.write("Nessun titolo in sconto.")
+
+    with col2:
+        st.subheader("🔴 DA VENDERE (>70)")
+        if lista_vendi:
+            for item in lista_vendi:
+                st.error(item)
+        else:
+            st.write("Nessun titolo in ipercomprato.")
+
+    st.divider()
+    
+    with st.expander("⚪ TITOLI STABILI"):
+        if lista_stabili:
+            for item in lista_stabili:
+                st.write(item)
