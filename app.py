@@ -1,9 +1,3 @@
-Ecco il codice completo, corretto e pronto all'uso. Ho sistemato la logica dei grafici all'interno degli expander (i pulsanti a scomparsa) e ho inserito la lista completa dei 52 titoli.
-
-Copia tutto questo e sostituisci il contenuto del tuo file app.py su GitHub.
-
-Python
-
 import streamlit as st
 import yfinance as yf
 import pandas as pd
