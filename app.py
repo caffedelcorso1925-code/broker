@@ -18,7 +18,7 @@ def invia_telegram(messaggio):
     except:
         pass
 
-# --- 2. LISTA TITOLI ---
+# --- 2. LISTA TITOLI (Sempre definita all'inizio) ---
 titoli = [
     'AAPL', 'NVDA', 'TSLA', 'AMZN', 'MSFT', 'META', 'GOOGL', 'AMD', 'PLTR', 'NFLX', 
     'ARM', 'SMCI', 'AVGO', 'INTC', 'ORCL', 'SNOW', 'BABA', 'UBER', 'COIN', 'SHOP',
@@ -29,26 +29,28 @@ titoli = [
 ]
 
 # --- 3. CONFIGURAZIONE APP ---
-st.set_page_config(page_title="Robot Raggruppato", page_icon="🎨")
-st.title("🎨 Robot Trader: Analisi per Colore")
-st.write("Soglie: Compra < 35 | Vendi > 70")
+st.set_page_config(page_title="Robot 52 Raggruppato", page_icon="🎯")
+st.title("🎯 Robot Trader: Risultati per Colore")
+st.write(f"Soglie: Compra < 35 | Vendi > 70")
 
 # --- 4. LOGICA DI SCANSIONE ---
-if st.button('🚀 AVVIA SCANSIONE RAGGRUPPATA'):
+if st.button('🚀 AVVIA SCANSIONE E RAGGRUPPA'):
     progress_bar = st.progress(0)
     
-    # Creiamo dei "cassetti" dove mettere i risultati
-    compras = []
-    vendis = []
-    stabili = []
+    # Cassetti per raggruppare i titoli
+    lista_verde = []
+    lista_rossa = []
+    lista_bianca = []
     
     for i, t in enumerate(titoli):
         try:
             df = yf.download(t, period="30d", interval="1d", progress=False)
             if not df.empty and len(df) > 14:
+                # Fix per colonne Yahoo Finance
                 if isinstance(df.columns, pd.MultiIndex):
                     df.columns = df.columns.get_level_values(0)
                 
+                # Calcolo RSI
                 delta = df['Close'].diff()
                 up = delta.clip(lower=0)
                 down = -1 * delta.clip(upper=0)
@@ -58,41 +60,49 @@ if st.button('🚀 AVVIA SCANSIONE RAGGRUPPATA'):
                 rsi_attuale = float(100 - (100 / (1 + rs)).iloc[-1])
                 prezzo_attuale = float(df['Close'].iloc[-1])
 
-                testo_risultato = f"**{t}** | Prezzo: {prezzo_attuale:.2f} | RSI: {rsi_attuale:.1f}"
+                testo = f"**{t}** | Prezzo: {prezzo_attuale:.2f} | RSI: {rsi_attuale:.1f}"
                 
-                # Mettiamo il risultato nel cassetto giusto
+                # Smistamento nei cassetti
                 if rsi_attuale < 35:
-                    compras.append(testo_risultato)
+                    lista_verde.append(testo)
                     invia_telegram(f"🟢 COMPRA: {t} (RSI {rsi_attuale:.1f})")
                 elif rsi_attuale > 70:
-                    vendis.append(testo_risultato)
+                    lista_rossa.append(testo)
                     invia_telegram(f"🔴 VENDI: {t} (RSI {rsi_attuale:.1f})")
                 else:
-                    stabili.append(f"{t}: RSI {rsi_attuale:.1f}")
+                    lista_bianca.append(f"{t}: RSI {rsi_attuale:.1f}")
         except:
             continue
+        
         progress_bar.progress((i + 1) / len(titoli))
 
-    # --- 5. MOSTRA I RISULTATI RAGGRUPPATI ---
+    # --- 5. VISUALIZZAZIONE FINALE RAGGRUPPATA ---
     
-    st.subheader("🟢 SEGNALI DI ACQUISTO (Sotto 35)")
-    if compras:
-        for c in compras:
-            st.success(c)
+    st.divider()
+    
+    # 🟢 BLOCCO VERDE
+    st.header("🟢 SEGNALI DI ACQUISTO")
+    if lista_verde:
+        for segnale in lista_verde:
+            st.success(segnale)
     else:
-        st.info("Nessun titolo da comprare al momento.")
+        st.write("Nessun titolo sotto RSI 35.")
 
-    st.subheader("🔴 SEGNALI DI VENDITA (Sopra 70)")
-    if vendis:
-        for v in vendis:
-            st.error(v)
+    # 🔴 BLOCCO ROSSO
+    st.header("🔴 SEGNALI DI VENDITA")
+    if lista_rossa:
+        for segnale in lista_rossa:
+            st.error(segnale)
     else:
-        st.info("Nessun titolo da vendere al momento.")
+        st.write("Nessun titolo sopra RSI 70.")
 
-    st.subheader("⚪ TITOLI IN FASE STABILE")
-    with st.expander("Clicca per vedere i titoli stabili"):
-        if stabili:
-            for s in stabili:
-                st.write(s)
+    # ⚪ BLOCCO BIANCO (A scomparsa per non ingombrare)
+    st.header("⚪ TITOLI STABILI")
+    with st.expander("Clicca per vedere i titoli in zona neutra"):
+        if lista_bianca:
+            for segnale in lista_bianca:
+                st.text(segnale)
         else:
-            st.write("Nessun dato disponibile.")
+            st.write("Nessun dato.")
+
+    st.balloons() # Festeggia la fine della scansione!
